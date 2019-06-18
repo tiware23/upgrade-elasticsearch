@@ -1,0 +1,46 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+VAGRANT_API_VERSION = 2
+
+$script = <<-SCRIPT
+sudo yum install -y java-1.8.0-openjdk curl
+curl -L -O https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.1.2.rpm
+sudo rpm -i elasticsearch-6.1.2.rpm
+SCRIPT
+
+Vagrant.configure(VAGRANT_API_VERSION) do |config|
+  config.ssh.insert_key = false
+  config.hostmanager.enabled = true
+  config.hostmanager.manage_host = true
+  config.hostmanager.manage_guest = true
+  config.hostmanager.ignore_private_ip = false
+  config.hostmanager.include_offline = true
+  config.vm.provision "shell", inline: $script
+
+
+  config.vm.define 'elastic-master01' do |el1|
+    el1.vm.hostname = 'elastic-master01'
+    el1.vm.box = "centos/7"
+    el1.vm.network "private_network", ip: "192.168.56.11"
+    el1.hostmanager.aliases = %w(elastic-master01.local elastic-master01)
+  end
+  config.vm.define 'elastic-master02' do |el3|
+    el3.vm.hostname = 'elastic-master02'
+    el3.vm.box = "centos/7"
+    el3.vm.network "private_network", ip: "192.168.56.10"
+    el3.hostmanager.aliases = %w(elastic-master02.local elastic-master02)
+  end  
+  config.vm.define 'elastic02' do |el2|
+    el2.vm.hostname = 'elastic02'
+    el2.vm.box = "centos/7"
+    el2.vm.network "private_network",  ip: "192.168.56.12"
+    el2.hostmanager.aliases = %w(elastic02.local elastic02)
+  end
+  config.vm.define 'elastic03' do |el3|
+    el3.vm.hostname = 'elastic03'
+    el3.vm.box = "centos/7"
+    el3.vm.network "private_network", ip: "192.168.56.13"
+    el3.hostmanager.aliases = %w(elastic03.local elastic03)
+  end
+end

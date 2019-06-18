@@ -1,0 +1,74 @@
+---
+# tasks file for upgrade-elasticsearch
+- name: Checking if the cluster is green
+  uri:
+    url: "http://localhost:9200/_cat/health?format=json"
+    method: GET
+    use_proxy: False
+    return_content: yes
+    body_format: json
+  register: result
+  delay: 1
+  ignore_errors: yes
+
+- name: Change the elaticsearch cluster settings allocate shards to new_primaries
+  uri:
+    url: "http://localhost:9200/_cluster/settings?pretty"
+    method: PUT
+    body: "{{ lookup('template', 'data_new_primaries.json.j2') }}"
+    force_basic_auth: yes
+    body_format: json
+    headers:
+      Content-Type: "application/json"
+    when: result.status == "green"
+
+- name: Stop elaticsearch
+  systemd:
+    name: elasticsearch
+    state: stopped
+
+- name: Wait for all connections to be closed
+  wait_for:
+    host: "{{ansible_default_ipv4.address}}"
+    port: 9200
+    delay: 10
+    state: drained
+  become: True
+
+- name: Added Elasticsearch Repo.
+  yum_repository:
+    name: elaticsearch-6
+    description: Elastic repository for 6.x packages
+    file: elasticsearch
+    baseurl: https://artifacts.elastic.co/packages/6.x/yum
+    gpgcheck: true
+    gpgkey: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+ 
+- name: Update Elasticsearch to {{ version_elatic_search }}
+  yum:
+    name: elasticsearch
+    state: latest
+
+- name: Start elaticsearch
+  systemd:
+    name: elasticsearch
+    state: started
+    daemon_reload: true
+    enabled: true
+
+- name: Validate if port is listening
+  wait_for:
+    host: "{{ansible_default_ipv4.address}}"
+    port: 9200
+    delay: 10
+    state: started
+
+- name: Change the elaticsearch cluster settings allocate shards to null
+  uri:
+    url: "http://localhost:9200/_cluster/settings?pretty"
+    method: PUT
+    body: "{{ lookup('template', 'data_null.json.j2') }}"
+    force_basic_auth: yes
+    body_format: json
+    headers:
+      Content-Type: "application/json"
